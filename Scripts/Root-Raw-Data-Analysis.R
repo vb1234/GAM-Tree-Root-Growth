@@ -9,11 +9,13 @@
 # 2022-01-05  7:00- 8:00   #code for finding RootID for same date, all instances of that Tube, RootID
 # 2022-01-06  11:00-12:00  #code for finding RootID for same date in different windows for that date only
 # 2022-01-13  11-3:00      #code to geom_smooth of New_RootsByDate, Window, Plots
-#                            code to filter out data from observation 1, 
+#                            code to filter out data from observation 1
+# 2022-01-20  10-1:30 Install git(remote repo), setup GitHub (origin repo), connect 
+#               include setup commend in comments below for parts that may need to do when setup Windows PC
 #
-#
-#
+### Open issues for VB
 ###
+###2022-01-13
 ###  1. Ask Luke about why no Jan again?
 ###
 ###  2. Ask Newton about RootID scheme, branches receive new id?
@@ -26,6 +28,12 @@
 ###
 ###  4. When plot TubeIDs by Window see 2 bands in some windows, branches? Not important just curious
 
+###2022-01-20
+###  1. Use git so can frequently save annotated intermediate code, IDE to see
+###  2. Google docs can save version, less granular?
+### End issues for VB
+##
+######Start Git/github setup
 #### Windows only
 #library(installR)
 #updateR()  # checks if current is latest, if not asks if want to update
@@ -45,9 +53,11 @@
 #usethis::create_github_token()
 #     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
 # gitcreds::gitcreds_set()
+#  On windows install/setup git, connect Rstudio, clone repository to PC
+######End Git/github setup
+
 
 library(tidyverse)
-
 library(readr)
 counts_roots_data  <- read_csv("Data/QUBI-E_counts.csv", na=c("NA", "-", NA))# Converts "NA", "-" to NAs
 #summary(counts_roots_data)
@@ -184,31 +194,41 @@ New_RootsByDate<- raw_roots_data %>%
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
 #plot new roots over entire time interval 2019 & 2020
+jpeg("Analysis/Images/New_roots_Entire_Interval")
 ggplot(data=New_RootsByDate, mapping =aes(x =Appeared.Date,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
   geom_smooth()
 
+
 #plot new roots timespan 1 year, i.e. overlay years
+jpeg("Analysis/Images/New_roots_Annual")
 ggplot(data=New_RootsByDate, mapping =aes(x =Day,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
   geom_smooth()
 
+
 #Fix by removing data for first observation since it is actually comulative from trees past growth
+
+jpeg("Analysis/Images/New_roots_Entire_Interval")
 New_RootsByDate_Nrows =nrow(New_RootsByDate)
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Appeared.Date,  y=rootCount)) +
   geom_point() +
   geom_smooth()
+dev.off()
 
+jpeg("Analysis/Images/New_roots_Annual")
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
   geom_smooth()
+dev.off()
 
 
 # To increase number of samples, use counts per tube, and counts per window
 # Plot of counts per window vs time (all tubes combined)
+
 New_RootsByWindow_NoObs1<- raw_roots_data %>%
   filter(Appeared > 1) %>%
   group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
@@ -217,13 +237,17 @@ New_RootsByWindow_NoObs1<- raw_roots_data %>%
 
 summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
 
+jpeg("Analysis/Images/New_roots_Entire_Interval-Window")
 ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountWin)) +
   geom_point(mapping = aes(color=Window )) +
   geom_smooth()
+dev.off()
 
+jpeg("Analysis/Images/New_roots_Annual-Window")
 ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Day,  y=rootCountWin)) +
   geom_point(mapping = aes(color=Window )) +
   geom_smooth()
+dev.off()
 
 #Plot of counts per tube vs time (all windows combined)
 New_RootsByTube_NoObs1<- raw_roots_data %>%
@@ -234,13 +258,91 @@ New_RootsByTube_NoObs1<- raw_roots_data %>%
 
 summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
 
+jpeg("Analysis/Images/New_roots_Entire_Interval-Tube")
 ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountTube)) +
   geom_point(mapping = aes(color=Tube )) +
   geom_smooth()
+dev.off()
 
+jpeg("Analysis/Images/New_roots_Annual_Tube")
 ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Day,  y=rootCountTube)) +
   geom_point(mapping = aes(color=Tube )) +
   geom_smooth()
+dev.off()
+
+# Look at effect of different span values, code from
+# http://r-statistics.co/Loess-Regression-With-R.html
+New_RootsByTube_NoObs1_OrderDay<- New_RootsByTube_NoObs1 %>%
+  ungroup() %>%
+  arrange(Day)
+
+loess75Default <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay)
+#Number of Observations: 108 
+#Equivalent Number of Parameters: 4.55 
+#Residual Standard Error: 42.56 
+#Default span = 0.75, degree = 2
+
+# Define loess models
+loessMod10 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.10) # 10% smoothing span)
+loessMod25 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.25) # 25% smoothing span)
+loessMod50 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.50) # 50% smoothing span)
+loessMod75 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.75) # 75% smoothing span)
+
+loessMod10_SSE <- sum(loessMod10$residuals, na.rm = T)^2  #  3.828922e-25
+loessMod25_SSE <- sum(loessMod25$residuals, na.rm = T)^2  #  8758.039
+loessMod75_SSE <- sum(loessMod75$residuals, na.rm = T)^2  #  29895.84
+
+# get smoothed output
+smoothed10 <- predict(loessMod10) 
+smoothed25 <- predict(loessMod25)
+smoothed50 <- predict(loessMod50)
+smoothed75 <- predict(loessMod75)
+
+# Plot it (original has colors defined, not on Mac??)
+jpeg("Analysis/Images/New_roots_TubeDay-LoessSpan10-25-50-75")
+plot(New_RootsByTube_NoObs1_OrderDay$rootCountTube, x=New_RootsByTube_NoObs1_OrderDay$Day, type="l", main="Loess Smoothing and Prediction", xlab="Day", ylab="New Roots per Tube")
+lines(smoothed10, x=New_RootsByTube_NoObs1_OrderDay$Day, col="purple")
+lines(smoothed25, x=New_RootsByTube_NoObs1_OrderDay$Day, col="green")
+lines(smoothed50, x=New_RootsByTube_NoObs1_OrderDay$Day, col="blue")
+lines(smoothed75, x=New_RootsByTube_NoObs1_OrderDay$Day, col="red")  #Note this same as geom_smooth
+dev.off()
+
+#The following optimization does not work 
+#Using function from http://r-statistics.co/Loess-Regression-With-R.html
+#Find optimal span
+loessMod <- try(loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay, span=0.5))
+res <- try(loessMod$residuals)
+# define function that returns the SSE
+calcSSE <- function(x){
+  loessMod <- try(loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay, span=x), silent=T)
+  res <- try(loessMod$residuals, silent=T)
+  if(class(res)!="try-error"){
+    if((sum(res, na.rm=T) > 0)){
+      sse <- sum(res^2)  
+    }
+  }else{
+    sse <- 99999
+  }
+  return(sse)
+}
+
+# Run optim to find span that gives min SSE, starting at 0.5
+#optim(par=c(0.5), calcSSE, method="SANN")
+#E, starting at 0.5
+#> optim(par=c(0.5), calcSSE, method="SANN")
+#$par   The best set of parameters found.
+#[1] -0.1035813
+#$value  The value of fn corresponding to par
+#[1] 99999
+#$counts
+#function gradient 
+#10000       NA 
+#$convergence  	An integer code. 0 indicates successful completion (which is always the case for "SANN" and "Brent"). 
+#[1] 0
+#$message A character string giving any additional information returned by the optimizer, or NULL.
+#NULL
+#Don't think that a negative value is meaningful. Check values .10,.25, .75 
+# see above that SSE becomes very large
 
 #####Recreate the "QUBI-E.counts" data
 New_Roots<- raw_roots_data %>%
@@ -266,7 +368,9 @@ New_Roots <-New_Roots[2:New_Roots_Nrow,] %>%
   mutate(MaxRoots = max(rootCountNA))
 
 print(New_Roots,n=20,width = Inf)
-
+# Note 222-01-013 that rootCount matches mroot.... for QUBI-E except row 6, 582 vs 584
+# Examined my QUBI-E_raw file with excel and see no obvious rows to omit
+# Perhaps different versions of raw data?
 
 
 
