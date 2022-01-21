@@ -12,7 +12,11 @@
 #                            code to filter out data from observation 1
 # 2022-01-20  10-1:30 Install git(remote repo), setup GitHub (origin repo), connect 
 #               include setup commend in comments below for parts that may need to do when setup Windows PC
+#               2-4  edit script
+#                ? cannot commit, find email from github security violation PAT in comment        
+#               10-1:30 email, script edit - remove PAT, compare span for Tube Residual Standard Error 
 #
+
 ### Open issues for VB
 ###
 ###2022-01-13
@@ -50,9 +54,10 @@
 #usethis::git_default_branch_configure()
 #
 #  Get Personal Access Token for Rstudio to access GitHub repository
-#usethis::create_github_token()
-#     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
-# gitcreds::gitcreds_set()
+#  usethis::create_github_token()
+#    Copy token  (send email to gmail with token to save)
+#   gitcreds::gitcreds_set()
+#   Paste token
 #  On windows install/setup git, connect Rstudio, clone repository to PC
 ######End Git/github setup
 
@@ -102,8 +107,6 @@ raw_roots_data  <- read_csv("Data/QUBI-E_raw.csv", na=c("NA", "-", NA),
 # Month - month appeared 
 # Day - day of year appeared
 
-
-
 summarise(raw_roots_data,count=n(), rootCountNoNA=sum(!is.na(RootID)))
 
 #Total count is 2851
@@ -113,7 +116,7 @@ summary(raw_roots_data$Month)        # Shows factor is ordered
 #For additional viewing of structure of raw data use following script
 # Note that sourceing the script does not send output to console.
 # Need to open script and run from that tab to get output
-source("Scripts/Check-Raw-Data.R")
+# source("Scripts/Check-Raw-Data.R")
 
 # Depends on raw_roots_data being the data read from the raw data file
 head(raw_roots_data)
@@ -272,6 +275,8 @@ dev.off()
 
 # Look at effect of different span values, code from
 # http://r-statistics.co/Loess-Regression-With-R.html
+
+#Test on Tube data since more data points
 New_RootsByTube_NoObs1_OrderDay<- New_RootsByTube_NoObs1 %>%
   ungroup() %>%
   arrange(Day)
@@ -279,18 +284,55 @@ New_RootsByTube_NoObs1_OrderDay<- New_RootsByTube_NoObs1 %>%
 loess75Default <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay)
 #Number of Observations: 108 
 #Equivalent Number of Parameters: 4.55 
-#Residual Standard Error: 42.56 
+######Residual Standard Error: 42.56 
 #Default span = 0.75, degree = 2
 
+#Same for Dates
+# data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=rootCount
+New_RootsByDate_NoObs1_OrderDay<-New_RootsByDate[2:New_RootsByDate_Nrows,] %>%
+  ungroup() %>%
+  arrange(Day)
+
+loessMod75_Date <- loess(rootCount ~ Day, data = New_RootsByDate_NoObs1_OrderDay)
+#Number of Observations: 18 
+#Equivalent Number of Parameters: 4.85 
+####  Residual Standard Error: 142.6   # Much larger than by Tube obove
+#Default span = 0.75, degree = 2
+#sum(loessMod75_Date$residuals, na.rm = T)  #[1] -126.4533
+#sum(loessMod75_Date$residuals, na.rm = T)^2  # 15990.43
+
+#https://www.statology.org/how-to-interpret-residual-standard-error/
+#  Residual Standard Error = square root of (sum of y-_observed - y_predicted)^2/df)
+#  df =The degrees of freedom, calculated as the total number of observations – total number of model parameters.
+#
 # Define loess models
 loessMod10 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.10) # 10% smoothing span)
 loessMod25 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.25) # 25% smoothing span)
 loessMod50 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.50) # 50% smoothing span)
 loessMod75 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.75) # 75% smoothing span)
 
+#Results below copied from console window
+#loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay, span = .75)
+#Number of Observations: 108 
+#Equivalent Number of Parameters: 4.55 
+######Residual Standard Error: 42.56 
+#Default span = 0.75, degree = 2
+
+#loess(formula = rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay, span = 0.5)
+#Number of Observations: 108 
+#Equivalent Number of Parameters: 7.05 
+#Residual Standard Error: 42.98
+
+#loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,span=0.30)
+#Number of Observations: 108 
+#Equivalent Number of Parameters: 10.59 
+#Residual Standard Error: 42.78 
+
+# Following do not include degrees of freedom
 loessMod10_SSE <- sum(loessMod10$residuals, na.rm = T)^2  #  3.828922e-25
 loessMod25_SSE <- sum(loessMod25$residuals, na.rm = T)^2  #  8758.039
 loessMod75_SSE <- sum(loessMod75$residuals, na.rm = T)^2  #  29895.84
+
 
 # get smoothed output
 smoothed10 <- predict(loessMod10) 
