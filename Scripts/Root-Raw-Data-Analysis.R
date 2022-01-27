@@ -14,7 +14,12 @@
 #               include setup commend in comments below for parts that may need to do when setup Windows PC
 #               2-4  edit script
 #                ? cannot commit, find email from github security violation PAT in comment        
-#               10-1:30 email, script edit - remove PAT, compare span for Tube Residual Standard Error 
+#               10-1:30 email, script edit - remove PAT, compare span for Tube Residual Standard Error
+#2022-01-26   3 pm - 5pm Review input parameters and output values from optim() for loess() and add comments
+#                 optim() did not return an optimal value, for minimizing SSE
+#                 plot with  span values 0.1-1.0 for loess() and confirm Residual Standard Error increases with span.
+#
+#
 #
 
 ### Open issues for VB
@@ -35,10 +40,12 @@
 ###2022-01-20
 ###  1. Use git so can frequently save annotated intermediate code, IDE to see
 ###  2. Google docs can save version, less granular?
+###  3. Should not compare Residual Standard Errors from different datasets
+###      i.e only for different models on same data set
 ### End issues for VB
 ##
 ######Start Git/github setup
-#### Windows only
+#### Future: Windows only
 #library(installR)
 #updateR()  # checks if current is latest, if not asks if want to update
 #
@@ -114,21 +121,23 @@ summary(raw_roots_data)              #Check for NAs - Find 235 are rows with no 
 summary(raw_roots_data$Month)        # Shows factor is ordered
 
 #For additional viewing of structure of raw data use following script
-# Note that sourceing the script does not send output to console.
+# Note that sourcing the script does not send output to console.
 # Need to open script and run from that tab to get output
 # source("Scripts/Check-Raw-Data.R")
+#IGNORE sourcing for now
 
 # Depends on raw_roots_data being the data read from the raw data file
 head(raw_roots_data)
 spec(raw_roots_data)
 
-#Find out the values, also available from Summary()
+#Find out the values for categorical variables, also available from Summary()
 levels(raw_roots_data$Window)
 levels(raw_roots_data$Initial.Status) 
 levels(raw_roots_data$Final.Status)
 levels(raw_roots_data$Year)
 levels(raw_roots_data$Month)
 
+#See that there are a large number of NAs, how many root are there really?
 summarise(raw_roots_data,count=n(), rootCountNoNA=sum(!is.na(RootID)))
 
 #Total count is 2851
@@ -139,49 +148,54 @@ summary(raw_roots_data$Month)        # Shows factor is ordered
 #summary()
 #summarise(count=n(), minimum_RootID= min(RootID,na.rm=TRUE), maximum_RootID= max(RootID,na.rm=TRUE))
 
-#Check for roots with same RootID, see Same RootID in different Tubes
-RootID_GT1_index<- raw_roots_data %>%
-  group_by(RootID) %>%
-  summarise(count=n()) %>%
-  filter(count > 1)
-print(RootID_GT1_index,n=20,width = Inf)
-
-#This gets all rows with RootID in index,  not just those with 2+ instances 
-#RootID_GT1_rows<- subset(raw_roots_data,RootID %in% RootID_GT1_index$RootID) %>%
-# arrange(RootID)%>%
-# print(n=20,width = Inf) 
-
-# Note that Tube/RootID/Window is unique, may be in same "Appeared" (observation) or not
-# Tube/RootID/Window is unique
-TubeRootID_GT1_index<- raw_roots_data %>%  
-  filter(!is.na(RootID))  %>% 
-  group_by(RootID, Tube) %>%   #If add window, all counts are 1
-  summarise(count=n()) %>%
-  print(n=20,width = Inf)
-
-#Roots with same id in different windows at same observation time 
-TubeRootID_GT1_rows<-raw_roots_data %>%  
-  filter(!is.na(RootID))  %>% #2616 rows
-  group_by(RootID, Tube, Appeared) %>% 
-  filter(n() > 1)  %>% 
-  arrange(Plot, Tube, RootID,Appeared, Window)%>%
-  print(n=20,width = Inf) #Total of 271 rows 
-
-#Roots_Dec <-raw_roots_data[,"Appeared"==10] #See that all "roots" are not roots #Error why??
-#raw_roots_data["Appeared"==10,.] #why doesn't work
-subset(raw_roots_data,Appeared==10)
-
-print(raw_roots_data[30,]) #Check what some of the NAs are in data in this row
-# Explicitly cast each column with NA value, not most efficient but most clear
-
-#  Plot RootID vs Appeared to get overall view of data
-#  Appeared and Appeared.Date should be idenical
-ggplot(data=raw_roots_data) +
-  geom_point(mapping = aes(x =Appeared.Date,  y=RootID ))
-
-ggplot(data=raw_roots_data) +
-  geom_point(mapping = aes(x =Day,  y=RootID ))+
-  facet_grid (Tube ~ Window)
+### Start check the pattern of RootID, why are there duplicates?
+###  Code below shows RootID is generated separately for each tube window
+###  That is the same RootID is seen in multiple tubes, and may occur once in each window of a single tube
+# #Check for roots with same RootID, see Same RootID in different Tubes
+# RootID_GT1_index<- raw_roots_data %>%
+#   group_by(RootID) %>%
+#   summarise(count=n()) %>%
+#   filter(count > 1)
+# print(RootID_GT1_index,n=20,width = Inf)
+# 
+# #This gets all rows with RootID in index,  not just those with 2+ instances 
+# #RootID_GT1_rows<- subset(raw_roots_data,RootID %in% RootID_GT1_index$RootID) %>%
+# # arrange(RootID)%>%
+# # print(n=20,width = Inf) 
+# 
+# # Note that Tube/RootID/Window is unique, may be in same "Appeared" (observation) or not
+# # Tube/RootID/Window is unique
+# TubeRootID_GT1_index<- raw_roots_data %>%  
+#   filter(!is.na(RootID))  %>% 
+#   group_by(RootID, Tube) %>%   #If add window, all counts are 1
+#   summarise(count=n()) %>%
+#   print(n=20,width = Inf)
+# 
+# #Roots with same id in different windows at same observation time 
+# TubeRootID_GT1_rows<-raw_roots_data %>%  
+#   filter(!is.na(RootID))  %>% #2616 rows
+#   group_by(RootID, Tube, Appeared) %>% 
+#   filter(n() > 1)  %>% 
+#   arrange(Plot, Tube, RootID,Appeared, Window)%>%
+#   print(n=20,width = Inf) #Total of 271 rows 
+# 
+# #Roots_Dec <-raw_roots_data[,"Appeared"==10] #See that all "roots" are not roots #Error why??
+# #raw_roots_data["Appeared"==10,.] #why doesn't work
+# subset(raw_roots_data,Appeared==10)
+# 
+# print(raw_roots_data[30,]) #Check what some of the NAs are in data in this row
+# # Explicitly cast each column with NA value, not most efficient but most clear
+# 
+# #  Plot RootID vs Appeared to get overall view of data
+# #  Appeared and Appeared.Date should be idenical
+# ggplot(data=raw_roots_data) +
+#   geom_point(mapping = aes(x =Appeared.Date,  y=RootID ))
+# 
+# ggplot(data=raw_roots_data) +
+#   geom_point(mapping = aes(x =Day,  y=RootID ))+
+#   facet_grid (Tube ~ Window)
+### End check the pattern of RootID
+###
 
 
 ################################################################################################################
@@ -202,6 +216,7 @@ ggplot(data=New_RootsByDate, mapping =aes(x =Appeared.Date,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
   geom_smooth()
+dev.off()
 
 
 #plot new roots timespan 1 year, i.e. overlay years
@@ -210,7 +225,7 @@ ggplot(data=New_RootsByDate, mapping =aes(x =Day,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
   geom_smooth()
-
+dev.off()
 
 #Fix by removing data for first observation since it is actually comulative from trees past growth
 
@@ -233,7 +248,7 @@ dev.off()
 # Plot of counts per window vs time (all tubes combined)
 
 New_RootsByWindow_NoObs1<- raw_roots_data %>%
-  filter(Appeared > 1) %>%
+  filter(Appeared > 1) %>%                                        # Remove first obs.
   group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
   summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)), 
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
@@ -296,7 +311,9 @@ New_RootsByDate_NoObs1_OrderDay<-New_RootsByDate[2:New_RootsByDate_Nrows,] %>%
 loessMod75_Date <- loess(rootCount ~ Day, data = New_RootsByDate_NoObs1_OrderDay)
 #Number of Observations: 18 
 #Equivalent Number of Parameters: 4.85 
-####  Residual Standard Error: 142.6   # Much larger than by Tube obove
+####  Residual Standard Error: 142.6   # Much larger than by Tube obove, 
+####  Is this faulty conclusion since range is different!!!
+####                                   # Only valid for comparisons of models for same data???
 #Default span = 0.75, degree = 2
 #sum(loessMod75_Date$residuals, na.rm = T)  #[1] -126.4533
 #sum(loessMod75_Date$residuals, na.rm = T)^2  # 15990.43
@@ -328,10 +345,16 @@ loessMod75 <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay,
 #Equivalent Number of Parameters: 10.59 
 #Residual Standard Error: 42.78 
 
-# Following do not include degrees of freedom
-loessMod10_SSE <- sum(loessMod10$residuals, na.rm = T)^2  #  3.828922e-25
-loessMod25_SSE <- sum(loessMod25$residuals, na.rm = T)^2  #  8758.039
-loessMod75_SSE <- sum(loessMod75$residuals, na.rm = T)^2  #  29895.84
+options(digits=2)
+for(i in seq(from=0.2, to=1.0, by=0.1)){
+  lmod <- loess(rootCountTube ~ Day, data = New_RootsByTube_NoObs1_OrderDay, span = i)
+  print( paste("i  =", i, ",  Obs = ", lmod$n, ",  Residual Standard Error = ", lmod$s))
+}
+
+# Following SSE do not include degrees of freedom
+loessMod10_SSE <- sum(loessMod10$residuals^2, na.rm = T)  #  3.828922e-25
+loessMod25_SSE <- sum(loessMod25$residuals^2, na.rm = T)  #  8758.039
+loessMod75_SSE <- sum(loessMod75$residuals^2, na.rm = T)  #  29895.84
 
 
 # get smoothed output
@@ -342,13 +365,18 @@ smoothed75 <- predict(loessMod75)
 
 # Plot it (original has colors defined, not on Mac??)
 jpeg("Analysis/Images/New_roots_TubeDay-LoessSpan10-25-50-75")
-plot(New_RootsByTube_NoObs1_OrderDay$rootCountTube, x=New_RootsByTube_NoObs1_OrderDay$Day, type="l", main="Loess Smoothing and Prediction", xlab="Day", ylab="New Roots per Tube")
+plot(New_RootsByTube_NoObs1_OrderDay$rootCountTube, 
+     x=New_RootsByTube_NoObs1_OrderDay$Day, 
+     type="l", 
+     main="Loess Smoothing: Span = 10, 25, 50, 75", 
+     xlab="Day", ylab="New Roots per Tube")
 lines(smoothed10, x=New_RootsByTube_NoObs1_OrderDay$Day, col="purple")
 lines(smoothed25, x=New_RootsByTube_NoObs1_OrderDay$Day, col="green")
 lines(smoothed50, x=New_RootsByTube_NoObs1_OrderDay$Day, col="blue")
 lines(smoothed75, x=New_RootsByTube_NoObs1_OrderDay$Day, col="red")  #Note this same as geom_smooth
 dev.off()
 
+### Start optim() with loess
 #The following optimization does not work 
 #Using function from http://r-statistics.co/Loess-Regression-With-R.html
 #Find optimal span
@@ -368,52 +396,60 @@ calcSSE <- function(x){
   return(sse)
 }
 
-# Run optim to find span that gives min SSE, starting at 0.5
+# Run optim to find span that gives minimum sum of squared errors, SSE, starting at 0.5
+#           VB - method="SANN", function to generate new candidate point is "default Gaussian Markov Kerne"
+#              
 #optim(par=c(0.5), calcSSE, method="SANN")
 #E, starting at 0.5
-#> optim(par=c(0.5), calcSSE, method="SANN")
-#$par   The best set of parameters found.
+# optim(par=c(0.5), calcSSE, method="SANN")
+#  Output:  Definition of return values is from help for optim()
+#$par   The best set of parameters found.  VB: neg value not valid?
 #[1] -0.1035813
-#$value  The value of fn corresponding to par
+#$value  The value of fn corresponding to par, from function code above, 99999 is error, returned when Snn reqhed default of 10000 calls 
 #[1] 99999
 #$counts
-#function gradient 
-#10000       NA 
+## Number of calls to function  and Number of calls to gradient 
+#           10000                             NA 
 #$convergence  	An integer code. 0 indicates successful completion (which is always the case for "SANN" and "Brent"). 
 #[1] 0
 #$message A character string giving any additional information returned by the optimizer, or NULL.
 #NULL
-#Don't think that a negative value is meaningful. Check values .10,.25, .75 
+#VB comment 1/20/22: I don't think that a negative value of par is valid. Check values .10,.25, .75 
 # see above that SSE becomes very large
+### End optim() with loess
 
-#####Recreate the "QUBI-E.counts" data
-New_Roots<- raw_roots_data %>%
-  group_by(Appeared, Appeared.Date,Year, Month, Day) %>%  #These variables should have same value for each Observtion date
-  summarise(rootCountNA=n(), rootCount=sum(!is.na(RootID)), 
-            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
-##DaysTotal is Days since Jan. 1, 2019, will need to be adjusted as each year is added
-#   Need DaysTotal to calculate days between last date of one year and first of next
-New_Roots<-rename(New_Roots, DayOfYear = Day)
-New_Roots <- New_Roots %>% #DaysTotal is Days since Jan. 1, 2019
-  mutate(DaysTotal=ifelse(Year == 2020, DayOfYear + 365, DayOfYear) #Future adapt for Leap Year
-         )
+#method = "gam", formula = y ~ s(x, bs = "cs")
 
-New_Roots <-New_Roots %>% 
-  ungroup() %>% #Have to ungroup for lag to work
-  mutate(DaysBetween = DaysTotal - lag(DaysTotal, default = first(DaysTotal)),
-         RootsPerDay = rootCount/DaysBetween)
-
-New_Roots_Nrow <- nrow(New_Roots) 
-New_Roots <-New_Roots[2:New_Roots_Nrow,] %>%
-  group_by(Year)%>%
-  mutate(MaxRoots = max(rootCountNA))
-
-print(New_Roots,n=20,width = Inf)
-# Note 222-01-013 that rootCount matches mroot.... for QUBI-E except row 6, 582 vs 584
-# Examined my QUBI-E_raw file with excel and see no obvious rows to omit
-# Perhaps different versions of raw data?
-
+####### Ignore the following for now
+# #####Recreate the "QUBI-E.counts" data
+# New_Roots<- raw_roots_data %>%
+#   group_by(Appeared, Appeared.Date,Year, Month, Day) %>%  #These variables should have same value for each Observtion date
+#   summarise(rootCountNA=n(), rootCount=sum(!is.na(RootID)), 
+#             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
+# 
+# ##DaysTotal is Days since Jan. 1, 2019, will need to be adjusted as each year is added
+# #   Need DaysTotal to calculate days between last date of one year and first of next
+# New_Roots<-rename(New_Roots, DayOfYear = Day)
+# New_Roots <- New_Roots %>% #DaysTotal is Days since Jan. 1, 2019
+#   mutate(DaysTotal=ifelse(Year == 2020, DayOfYear + 365, DayOfYear) #Future adapt for Leap Year
+#          )
+# 
+# New_Roots <-New_Roots %>% 
+#   ungroup() %>% #Have to ungroup for lag to work
+#   mutate(DaysBetween = DaysTotal - lag(DaysTotal, default = first(DaysTotal)),
+#          RootsPerDay = rootCount/DaysBetween)
+# 
+# New_Roots_Nrow <- nrow(New_Roots) 
+# New_Roots <-New_Roots[2:New_Roots_Nrow,] %>%
+#   group_by(Year)%>%
+#   mutate(MaxRoots = max(rootCountNA))
+# 
+# print(New_Roots,n=20,width = Inf)
+# # Note 222-01-013 that rootCount matches mroot.... for QUBI-E except row 6, 582 vs 584
+# # Examined my QUBI-E_raw file with excel and see no obvious rows to omit
+# # Perhaps different versions of raw data?
+# 
 
 
 
