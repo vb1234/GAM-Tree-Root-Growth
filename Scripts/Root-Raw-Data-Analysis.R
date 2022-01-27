@@ -71,6 +71,7 @@
 
 library(tidyverse)
 library(readr)
+library(ggplot2)
 counts_roots_data  <- read_csv("Data/QUBI-E_counts.csv", na=c("NA", "-", NA))# Converts "NA", "-" to NAs
 #summary(counts_roots_data)
 head(counts_roots_data)
@@ -233,17 +234,44 @@ jpeg("Analysis/Images/New_roots_Entire_Interval")
 New_RootsByDate_Nrows =nrow(New_RootsByDate)
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Appeared.Date,  y=rootCount)) +
   geom_point() +
-  geom_smooth()
+  geom_smooth()+
+  ggtitle("Loess with default parameters - All by Date")
 dev.off()
 
 jpeg("Analysis/Images/New_roots_Annual")
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
   geom_point() +
-  geom_smooth()
+  geom_smooth()+
+  ggtitle("Loess with default parameters - All by Day of Year")
 dev.off()
 
+### Start Plots for Tubes
+#Plot of counts per tube vs time (all windows combined)
+New_RootsByTube_NoObs1<- raw_roots_data %>%
+  filter(Appeared > 1) %>%
+  group_by(Appeared, Appeared.Date,Year, Month, Day,Tube) %>%  
+  summarise(rootCountTubeNA=n(), rootCountTube=sum(!is.na(RootID)), 
+            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
+summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
+
+jpeg("Analysis/Images/New_roots_Entire_Interval-Tube")
+ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountTube)) +
+  geom_point(mapping = aes(color=Tube )) +
+  geom_smooth()+
+  ggtitle("Loess with default parameters - Tube by Date")
+dev.off()
+
+jpeg("Analysis/Images/New_roots_Annual_Tube")
+ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Day,  y=rootCountTube)) +
+  geom_point(mapping = aes(color=Tube )) +
+  geom_smooth() +
+  ggtitle("Loess with default parameters - Tube by Day of Year")
+dev.off()
+### End Plots for Tubes
+
+####  Start Plots for Windows
 # To increase number of samples, use counts per tube, and counts per window
 # Plot of counts per window vs time (all tubes combined)
 
@@ -258,35 +286,18 @@ summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
 jpeg("Analysis/Images/New_roots_Entire_Interval-Window")
 ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountWin)) +
   geom_point(mapping = aes(color=Window )) +
-  geom_smooth()
+  geom_smooth()+
+  ggtitle("Loess with default parameters - Window by Date")
 dev.off()
 
 jpeg("Analysis/Images/New_roots_Annual-Window")
 ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Day,  y=rootCountWin)) +
   geom_point(mapping = aes(color=Window )) +
-  geom_smooth()
+  geom_smooth()+
+  ggtitle("Loess with default parameters - Window by Day of Year")
 dev.off()
+####  End Plots for Windows
 
-#Plot of counts per tube vs time (all windows combined)
-New_RootsByTube_NoObs1<- raw_roots_data %>%
-  filter(Appeared > 1) %>%
-  group_by(Appeared, Appeared.Date,Year, Month, Day,Tube) %>%  
-  summarise(rootCountTubeNA=n(), rootCountTube=sum(!is.na(RootID)), 
-            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
-
-summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
-
-jpeg("Analysis/Images/New_roots_Entire_Interval-Tube")
-ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountTube)) +
-  geom_point(mapping = aes(color=Tube )) +
-  geom_smooth()
-dev.off()
-
-jpeg("Analysis/Images/New_roots_Annual_Tube")
-ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Day,  y=rootCountTube)) +
-  geom_point(mapping = aes(color=Tube )) +
-  geom_smooth()
-dev.off()
 
 # Look at effect of different span values, code from
 # http://r-statistics.co/Loess-Regression-With-R.html
@@ -418,8 +429,49 @@ calcSSE <- function(x){
 # see above that SSE becomes very large
 ### End optim() with loess
 
+#### Start Use GAM method for smoothing
+# https://ggplot2.tidyverse.org/reference/geom_smooth.html
+#   method = "gam", formula = y ~ s(x, bs = "cs")
 
-#method = "gam", formula = y ~ s(x, bs = "cs")
+# By Tube
+summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
+
+jpeg("Analysis/Images/GAM-New_roots_Entire_Interval-Tube")
+ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountTube)) +
+  geom_point(mapping = aes(color=Tube )) +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs"))+
+  ggtitle(" GAM with default parameters - Tubes By Date")
+dev.off()
+
+jpeg("Analysis/Images/GAM-New_roots_Annual_Tube")
+ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Day,  y=rootCountTube)) +
+  geom_point(mapping = aes(color=Tube )) +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
+  ggtitle(" GAM with default parameters - Tubes By Day of Year")
+dev.off()
+
+# By Date/Observation 
+
+summary(New_RootsByDate)  #Use to check data is as expected
+
+jpeg("Analysis/Images/GAM-New_roots_Entire_Interval")
+New_RootsByDate_Nrows =nrow(New_RootsByDate)
+ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Appeared.Date,  y=rootCount)) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
+  ggtitle(" GAM with default parameters - All By Date")
+dev.off()
+
+jpeg("Analysis/Images/GAM-New_roots_Annual")
+ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=rootCount)) +
+  #geom_point(mapping = aes(color=Window )) +
+  geom_point() +
+  geom_smooth(method = "gam", formula = y ~ s(x, bs = "cs")) +
+  ggtitle(" GAM with default parameters - All By Day of Year")
+dev.off()
+
+
+
 
 ####### Ignore the following for now
 # #####Recreate the "QUBI-E.counts" data
