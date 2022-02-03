@@ -18,8 +18,22 @@
 #2022-01-26   3 pm - 5pm Review input parameters and output values from optim() for loess() and add comments
 #                 optim() did not return an optimal value, for minimizing SSE
 #                 plot with  span values 0.1-1.0 for loess() and confirm Residual Standard Error increases with span.
-#
-#
+#2022-01-26   12-2pm try to create function for plots, long time n find how to print/write
+#                 Add titles to plots, correct plot filename, title, order in docx, 
+#                 review loess pages, conclude not useful for stats
+#              (2 hrs my time) all bookmarks on desktop in separate docx
+#              11pm-12 pm update google docs and email Luke
+#2022-02-02    2 hrs listen to Gavin course and take notes ( not recorded as vol hours)
+#               6-7pm  source for RootID check, not needed for analysis
+#              
+#ToDo: Noam/Gavin courses for next step? or Fridley?
+#  Move Data check code to separate source script, check sourcing and comment out source statement
+#  Commit,
+#  Same for date, day, window curves
+#  Commit, push
+#  Add gam plot default function and use for gam plots
+#  Commit
+#  Add arg for varying gam plots to plotting function?
 #
 
 ### Open issues for VB
@@ -149,60 +163,12 @@ summary(raw_roots_data$Month)        # Shows factor is ordered
 #summary()
 #summarise(count=n(), minimum_RootID= min(RootID,na.rm=TRUE), maximum_RootID= max(RootID,na.rm=TRUE))
 
-### Start check the pattern of RootID, why are there duplicates?
-###  Code below shows RootID is generated separately for each tube window
-###  That is the same RootID is seen in multiple tubes, and may occur once in each window of a single tube
-# #Check for roots with same RootID, see Same RootID in different Tubes
-# RootID_GT1_index<- raw_roots_data %>%
-#   group_by(RootID) %>%
-#   summarise(count=n()) %>%
-#   filter(count > 1)
-# print(RootID_GT1_index,n=20,width = Inf)
-# 
-# #This gets all rows with RootID in index,  not just those with 2+ instances 
-# #RootID_GT1_rows<- subset(raw_roots_data,RootID %in% RootID_GT1_index$RootID) %>%
-# # arrange(RootID)%>%
-# # print(n=20,width = Inf) 
-# 
-# # Note that Tube/RootID/Window is unique, may be in same "Appeared" (observation) or not
-# # Tube/RootID/Window is unique
-# TubeRootID_GT1_index<- raw_roots_data %>%  
-#   filter(!is.na(RootID))  %>% 
-#   group_by(RootID, Tube) %>%   #If add window, all counts are 1
-#   summarise(count=n()) %>%
-#   print(n=20,width = Inf)
-# 
-# #Roots with same id in different windows at same observation time 
-# TubeRootID_GT1_rows<-raw_roots_data %>%  
-#   filter(!is.na(RootID))  %>% #2616 rows
-#   group_by(RootID, Tube, Appeared) %>% 
-#   filter(n() > 1)  %>% 
-#   arrange(Plot, Tube, RootID,Appeared, Window)%>%
-#   print(n=20,width = Inf) #Total of 271 rows 
-# 
-# #Roots_Dec <-raw_roots_data[,"Appeared"==10] #See that all "roots" are not roots #Error why??
-# #raw_roots_data["Appeared"==10,.] #why doesn't work
-# subset(raw_roots_data,Appeared==10)
-# 
-# print(raw_roots_data[30,]) #Check what some of the NAs are in data in this row
-# # Explicitly cast each column with NA value, not most efficient but most clear
-# 
-# #  Plot RootID vs Appeared to get overall view of data
-# #  Appeared and Appeared.Date should be idenical
-# ggplot(data=raw_roots_data) +
-#   geom_point(mapping = aes(x =Appeared.Date,  y=RootID ))
-# 
-# ggplot(data=raw_roots_data) +
-#   geom_point(mapping = aes(x =Day,  y=RootID ))+
-#   facet_grid (Tube ~ Window)
-### End check the pattern of RootID
-###
-
+# source("Scripts/RootID_Check.R", echo = TRUE) #Code which checked for duplicate RootIDs, result RootID unique to Plot/Tube/Window
 
 ################################################################################################################
 # Create data for each observation date
-# rootCountNA
-# rootCount   -count of roots for observation with NO ROOTS rows deleted
+# rootCountNA  - count of roots for observation with NO ROOTS rows deleted
+# rootCount - excluding NAs  -USE THIS
 # totalLengthmm - sum of (maximum) lengths of each root ? units mm or 10* mm?
 # 
 
@@ -211,25 +177,31 @@ New_RootsByDate<- raw_roots_data %>%
   summarise(rootCountNA=n(), rootCount=sum(!is.na(RootID)), 
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
+#Plot of counts per tube vs time (all windows combined)
+New_RootsByTube_NoObs1<- raw_roots_data %>%
+  filter(Appeared > 1) %>%
+  group_by(Appeared, Appeared.Date,Year, Month, Day,Tube) %>%  
+  summarise(rootCountTubeNA=n(), rootCountTube=sum(!is.na(RootID)), 
+            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
+
+summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
+
+# To increase number of samples, use counts per tube, and counts per window
+# Plot of counts per window vs time (all tubes combined)
+
+New_RootsByWindow_NoObs1<- raw_roots_data %>%
+  filter(Appeared > 1) %>%                                        # Remove first obs.
+  group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
+  summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)), 
+            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
+
+summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
+
+### plots of roots for plots, tubes, windows using geom_smooth with default loess
+
+#Root count for  plot
+#Remove data for first observation since it is actually comulative from trees past growth
 #plot new roots over entire time interval 2019 & 2020
-jpeg("Analysis/Images/New_roots_Entire_Interval")
-ggplot(data=New_RootsByDate, mapping =aes(x =Appeared.Date,  y=rootCount)) +
-  #geom_point(mapping = aes(color=Window )) +
-  geom_point() +
-  geom_smooth()
-dev.off()
-
-
-#plot new roots timespan 1 year, i.e. overlay years
-jpeg("Analysis/Images/New_roots_Annual")
-ggplot(data=New_RootsByDate, mapping =aes(x =Day,  y=rootCount)) +
-  #geom_point(mapping = aes(color=Window )) +
-  geom_point() +
-  geom_smooth()
-dev.off()
-
-#Fix by removing data for first observation since it is actually comulative from trees past growth
-
 jpeg("Analysis/Images/New_roots_Entire_Interval")
 New_RootsByDate_Nrows =nrow(New_RootsByDate)
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Appeared.Date,  y=rootCount)) +
@@ -238,6 +210,7 @@ ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Appeared.
   ggtitle("Loess with default parameters - All by Date")
 dev.off()
 
+#plot new roots timespan 1 year, i.e. overlay years
 jpeg("Analysis/Images/New_roots_Annual")
 ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=rootCount)) +
   #geom_point(mapping = aes(color=Window )) +
@@ -247,14 +220,6 @@ ggplot(data=New_RootsByDate[2:New_RootsByDate_Nrows,], mapping =aes(x =Day,  y=r
 dev.off()
 
 ### Start Plots for Tubes
-#Plot of counts per tube vs time (all windows combined)
-New_RootsByTube_NoObs1<- raw_roots_data %>%
-  filter(Appeared > 1) %>%
-  group_by(Appeared, Appeared.Date,Year, Month, Day,Tube) %>%  
-  summarise(rootCountTubeNA=n(), rootCountTube=sum(!is.na(RootID)), 
-            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
-
-summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
 
 jpeg("Analysis/Images/New_roots_Entire_Interval-Tube")
 ggplot(data=New_RootsByTube_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountTube)) +
@@ -275,14 +240,6 @@ dev.off()
 # To increase number of samples, use counts per tube, and counts per window
 # Plot of counts per window vs time (all tubes combined)
 
-New_RootsByWindow_NoObs1<- raw_roots_data %>%
-  filter(Appeared > 1) %>%                                        # Remove first obs.
-  group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
-  summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)), 
-            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
-
-summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
-
 jpeg("Analysis/Images/New_roots_Entire_Interval-Window")
 ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Appeared.Date,  y=rootCountWin)) +
   geom_point(mapping = aes(color=Window )) +
@@ -298,7 +255,7 @@ ggplot(data=New_RootsByWindow_NoObs1, mapping =aes(x =Day,  y=rootCountWin)) +
 dev.off()
 ####  End Plots for Windows
 
-
+### Start analysis of curves using default Loess with varying span values
 # Look at effect of different span values, code from
 # http://r-statistics.co/Loess-Regression-With-R.html
 
@@ -428,6 +385,7 @@ calcSSE <- function(x){
 #VB comment 1/20/22: I don't think that a negative value of par is valid. Check values .10,.25, .75 
 # see above that SSE becomes very large
 ### End optim() with loess
+### End analysis of curves using default Loess with varying span values
 
 #### Start Use GAM method for smoothing
 # https://ggplot2.tidyverse.org/reference/geom_smooth.html
