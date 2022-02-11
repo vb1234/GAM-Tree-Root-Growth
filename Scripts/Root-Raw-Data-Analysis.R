@@ -65,6 +65,7 @@ summary(raw_roots_data$Month)        # Shows factor is ordered
 #For additional viewing of structure of raw data use following script
 # source("Scripts/Check-Raw-Data.R", echo = TRUE)
 
+
 #Find out the values for categorical variables, also available from Summary()
 levels(raw_roots_data$Window)
 levels(raw_roots_data$Initial.Status) 
@@ -117,7 +118,6 @@ New_RootsByWindow_NoObs1<- raw_roots_data %>%
   group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
   summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)), 
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
-
 summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
 
 ## Code for curves with loess and variations in span parameter
