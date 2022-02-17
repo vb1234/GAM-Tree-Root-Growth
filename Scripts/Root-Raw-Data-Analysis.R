@@ -90,7 +90,7 @@ summarise(raw_roots_data,count=n(), rootCountNoNA=sum(!is.na(RootID)))
 # rootCountNA  - count of roots for observation with NO ROOTS rows deleted
 # rootCount - excluding NAs  -USE THIS
 # totalLengthmm - sum of (maximum) lengths of each root ? units mm or 10* mm?
-# 
+# rootCountNorm - root count normalized by min/max of year
 
 New_RootsByDate<- raw_roots_data %>%
   filter(Appeared > 1) %>%
@@ -98,26 +98,48 @@ New_RootsByDate<- raw_roots_data %>%
   summarise(rootCountNA=n(), rootCount=sum(!is.na(RootID)), 
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
-#Plot of counts per tube vs time (all windows combined)
+# Function fun_normalize(x)
+# x is vector with min and max values
+# Use min and max to calculate, returns normalized value for a value in x
+fun_normalize <- function(x) {       # Create user-defined function
+  (x - min(x)) / (max(x) - min(x))
+}
+
+New_RootsByDate <- New_RootsByDate %>%
+  group_by(Year)  %>%
+  mutate(rootCountDate_Norm = fun_normalize(rootCount))
+
+summary(New_RootsByDate)  #Use to check data is as expected
+
+#Plot of counts per tube vs time (all windows combined), 6 tubes * 18 dates = 108 obs.
 New_RootsByTube_NoObs1<- raw_roots_data %>%
   filter(Appeared > 1) %>%
   group_by(Appeared, Appeared.Date,Year, Month, Day,Tube) %>%  
   summarise(rootCountTubeNA=n(), rootCountTube=sum(!is.na(RootID)), 
             totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
 
+New_RootsByTube_NoObs1 <- New_RootsByTube_NoObs1 %>%
+  group_by(Year)  %>%
+  mutate(rootCountTube_Norm = fun_normalize(rootCountTube))
+
 summary(New_RootsByTube_NoObs1)  #Use to check data is as expected
 
 # To increase number of samples, use counts per tube, and counts per window
-# Plot of counts per window vs time (ALL tubes COMBINED)
-#     Initially just ooking to see if curves are similar to that of all and by tube
+# Plot of counts per window vs time (ALL tubes COMBINED) 4 windows * 18 dates = 72 obs.
+#     Initially just looking to see if curves are similar to that of all and by tube
 #     TooDo?:Look to see if use window # as factor, see if pattern on new roots varies with depth
 #            Did not do this analysis
 
 New_RootsByWindow_NoObs1<- raw_roots_data %>%
-  filter(Appeared > 1) %>%                                        # Remove first obs.
-  group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
-  summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)), 
-            totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
+ filter(Appeared > 1) %>%                                        # Remove first obs.
+ group_by(Appeared, Appeared.Date,Year, Month, Day, Window) %>%  #These variables should have same value for each Observtion date
+ summarise(rootCountWinNA=n(), rootCountWin=sum(!is.na(RootID)),
+           totalLengthmm = sum(Maximum.Length, na.rm=TRUE))
+
+New_RootsByWindow_NoObs1 <- New_RootsByWindow_NoObs1 %>%
+  group_by(Year)  %>%
+  mutate(rootCountWin_Norm = fun_normalize(rootCountWin))
+
 summary(New_RootsByWindow_NoObs1)  #Use to check data is as expected
 
 ## Code for curves with loess and variations in span parameter
