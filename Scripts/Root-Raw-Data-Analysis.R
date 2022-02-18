@@ -10,10 +10,14 @@ library(readr)
 library(mgcv)
 library(ggplot2)
 
-counts_roots_data  <- read_csv("Data/QUBI-E_counts.csv", na=c("NA", "-", NA))# Converts "NA", "-" to NAs
+#counts_roots_data  is the summary by observation provided by Newton
+#it is not used since additional data was needed from the raw data. Left here to use as comparison initially
+#used to verify calculations from raw data here matched original or indicated issue to investigate.
+#counts_roots_data  <- read_csv("Data/QUBI-E_counts.csv", na=c("NA", "-", NA))# Converts "NA", "-" to NAs
 #summary(counts_roots_data)
-head(counts_roots_data)
+#head(counts_roots_data)
 #spec(counts_roots_data)
+
 
 raw_roots_data  <- read_csv("Data/QUBI-E_raw.csv", na=c("NA", "-", NA),
                             col_types= cols(

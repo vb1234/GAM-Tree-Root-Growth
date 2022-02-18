@@ -1,0 +1,133 @@
+---
+title: "Root Growth GAM analysis - First steps"
+
+author: Veta Bonnewell
+
+date: "2/10/2022"
+output: 
+  word_document:
+    reference_docx: Styles_Template.docx
+---
+<!---  Commenting out default R Markdown Header
+output:
+  word_document: default
+  html_document: default
+  
+To change default formatting
+Edit Styles_Template.docx
+I modified Header1-3 to reduce font size and spacing.
+Not clear how to reduce font size of output and maintain formating
+
+Use following to create simple header
+--->
+
+Title: "Root Growth GAM analysis - First steps"
+Author: Veta Bonnewell
+Date: "2/10/2022"
+
+
+<!---  Comment  old header and  out knit instructions
+###Script for Analysis of Root Growth 2019- 2020
+
+###Goal explore GAM for modeling data
+
+###Start:December 28, 2021
+
+###Veta Bonnewell
+
+#Rmarkdown Instructions
+For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+VB: set comment = NA (default is '##')
+prompt = '>'
+fig.height and fig.width in inches
+Set these as chunk defaults?
+Example:opts_chunk$set(message=FALSE)
+set within a chunk
+Unsuccessful in setting hxw = 2x3
+--->
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(comment = NA, prompt = '>' )
+```
+
+
+## Read Raw Data and create data summaries for plot, tube by year, entire interval
+
+
+```{r , echo=FALSE, collapse=TRUE, message = FALSE, warning=FALSE}
+
+source("Scripts/Root-Raw-Data-Analysis.R", echo = FALSE)
+
+```
+
+
+Completed Read Raw Data and create data summaries for plot, tube by year, entire interval
+ 
+
+## Run GAM analysis on data by tubes and by date (not normalized)
+
+
+
+```{r, echo=FALSE, collapse=TRUE}
+source("Scripts/GamAnalysis-Part1_BasicTrials.R", echo = TRUE)
+```
+
+
+## Run GAM analysis on normalized data for tubes and date.
+
+
+Default parameters for gam():
+          family = gaussian,  type of conditional distribution
+          bs =tp   basis (type of smoother) is low-rank thin plate spline:
+          Instead of giving a smoothing parameter value, sp=
+             Set method to REML, ie.  Smoothing via restricted maximum likelihood
+             
+
+             
+```{r, NormModel_Tube,echo=FALSE, collapse=TRUE}  
+ tubeNorm_model_default_k <- gam ( rootCountTube_Norm ~ s(Day),  #ksets number of basis functions, i.e nodes
+                        data = New_RootsByTube_NoObs1,
+                        # family = 'gaussian' #default, type of conditional distribution
+                        # bs ='tp'            #default, basis (type of smoother) is low-rank thin plate spline
+                        method = "REML")  #Smoothing via restricted maximum likelihood, 
+                                          # instead of giving a smoothing parameter value, "sp="
+print(coef(tubeNorm_model_default_k))  # shows value of k was 10
+summary(tubeNorm_model_default_k)
+plot(tubeNorm_model_default_k,main = "GAM, method = REML, k=10, sp = 0.2235", residuals = TRUE, pch=1,  se=TRUE)
+
+#Check smoothing parameter (s)  also g=called lambda?
+tubeNorm_model_default_k$sp
+
+gam.check(tubeNorm_model_default_k)
+
+```
+TENTATIVE: Model from Normalized Data by date (below) is the best model
+  Deviance explained = 79.2%, 
+  gam.check() 
+     Deviance vs quantiles best fit
+     Resids  vs linear pred:
+     Histogram of residuals closer to Gaussian
+     Response vs Fitted values:
+     
+```{r, NormModel_Date,echo=FALSE, collapse=TRUE}  
+dateNorm_model_default_k <- gam ( rootCountDate_Norm ~ s(Day),  #ksets number of basis functions, i.e nodes
+                        data = New_RootsByDate,
+                        # family = 'gaussian' #default, type of conditional distribution
+                        # bs ='tp'            #default, basis (type of smoother) is low-rank thin plate spline
+                        method = "REML")  #Smoothing via restricted maximum likelihood, 
+                                          # instead of giving a smoothing parameter value, "sp="
+print(coef(dateNorm_model_default_k))  # shows value of k was 10
+summary(dateNorm_model_default_k)
+plot(dateNorm_model_default_k,main = "GAM, method = REML, k=10, sp = 0.0.0256", residuals = TRUE, pch=1,  se=TRUE)
+
+#Check smoothing parameter (s)  also g=called lambda?
+dateNorm_model_default_k$sp
+
+gam.check(dateNorm_model_default_k)
+
+ ```
